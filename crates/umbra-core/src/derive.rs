@@ -1,6 +1,5 @@
 use crate::{Identity, PointWrapper, ScalarWrapper};
 use curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
-use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
 use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha512};

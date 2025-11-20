@@ -27,7 +27,7 @@ impl Identity {
             initiator_spend_sk: spend_scalar,
             initiator_view_sk: view_scalar,
             initiator_spend_pk: spend_pubkey,
-        initiator_view_pk: view_pubkey,
+            initiator_view_pk: view_pubkey,
         }
     }
 }
