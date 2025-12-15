@@ -18,9 +18,35 @@
 // `use umbra::umbra_core::Identity`
 // etc.
 
+pub mod umbra_client {
+    pub use ::umbra_client::*;
+}
+
+pub mod umbra_core {
+    pub use ::umbra_core::*;
+}
+
+pub mod umbra_rpc {
+    pub use ::umbra_rpc::*;
+}
+
+pub mod umbra_sweep {
+    pub use ::umbra_sweep::*;
+}
+
+pub mod umbra_api {
+    pub use ::umbra_api::*;
+}
+
+pub mod umbra_storage {
+    pub use ::umbra_storage::*;
+}
+
+pub use umbra_api::*;
 pub use umbra_client::*;
 pub use umbra_core::*;
 pub use umbra_rpc::*;
+pub use umbra_storage::*;
 pub use umbra_sweep::*;
 
 // -----------------------------------------------------------------------------

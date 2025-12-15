@@ -4,10 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+umbra-client = { path = "../umbra-client" }
 umbra-core = { path = "../umbra-core" }
 umbra-rpc = { path = "../umbra-rpc" }
 umbra-sweep = { path = "../umbra-sweep" }
 umbra-storage = { path = "../umbra-storage" }
+
+solana-sdk = { workspace = true }
+solana-client = { workspace = true }
+solana-system-interface = { workspace = true }
+rand_core = { workspace = true }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -18,4 +24,4 @@ tracing = { workspace = true, optional = true }
 
 [features]
 default = []
-logging = ["tracing"]
+logging = ["tracing", "umbra-client/logging"]

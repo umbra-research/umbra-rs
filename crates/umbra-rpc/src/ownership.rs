@@ -48,14 +48,21 @@ pub enum OwnershipError {
     PointDecompressionFailed,
 }
 
-/// Hash an EdwardsPoint into a scalar used as tweak.
-fn tweak_from_shared_point(shared: &EdwardsPoint) -> Scalar {
+const SHARED_SECRET_DOMAIN: &[u8] = b"umbra.v0.shared_secret";
+
+/// Domain separated hash-to-scalar for shared secrets.
+fn hash_shared_secret(shared: &EdwardsPoint) -> Scalar {
     let compressed = shared.compress().to_bytes();
 
     let mut h = Sha512::new();
+    h.update(SHARED_SECRET_DOMAIN);
     h.update(compressed);
 
-    Scalar::from_hash(h)
+    let digest = h.finalize();
+    let mut bytes = [0u8; 32];
+    bytes.copy_from_slice(&digest[..32]);
+
+    Scalar::from_bytes_mod_order(bytes)
 }
 
 /// Try to determine whether a `CandidateOutput` belongs to a claimant.
@@ -93,9 +100,9 @@ pub fn match_candidate_output(
     let shared_point: EdwardsPoint = &view_scalar * &ephem_point;
 
     // ---------------------------------------------------------------------
-    // 3. Hash shared secret → tweak scalar
+    // 3. Hash shared secret → tweak scalar (domain-separated)
     // ---------------------------------------------------------------------
-    let tweak: Scalar = tweak_from_shared_point(&shared_point);
+    let tweak: Scalar = hash_shared_secret(&shared_point);
 
     // ---------------------------------------------------------------------
     // 4. Derive expected one-time public key P:

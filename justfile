@@ -29,6 +29,13 @@ test-local:
     cargo test -p umbra --test env_local -- --nocapture
 
 # -------------------------------
+# Full Integration Tests
+# umbra_full_flow.rs
+# -------------------------------
+test-full:
+    cargo test -p umbra --test umbra_full_flow -- --nocapture
+
+# -------------------------------
 # Devnet Integration Tests
 # (tests/env_devnet.rs + tests/devnet/*)
 # -------------------------------

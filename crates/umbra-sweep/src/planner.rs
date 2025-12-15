@@ -45,7 +45,6 @@ pub fn build_sweep_plan(
                 continue;
             }
         };
-
         // 2) ECC derive (Phase 1)
         let recovery = match derive_for_claimant(
             claimant_identity,
