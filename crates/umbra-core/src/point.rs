@@ -1,6 +1,6 @@
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::Error as DeError;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PointWrapper(pub EdwardsPoint);
@@ -41,7 +41,6 @@ impl<'de> Deserialize<'de> for PointWrapper {
         let mut buf = [0u8; 32];
         buf.copy_from_slice(bytes);
 
-        PointWrapper::from_bytes(buf)
-            .ok_or_else(|| DeError::custom("invalid Edwards point"))
+        PointWrapper::from_bytes(buf).ok_or_else(|| DeError::custom("invalid Edwards point"))
     }
 }

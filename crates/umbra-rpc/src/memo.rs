@@ -39,20 +39,37 @@ pub enum MemoDecodeError {
 /// +------------+---------+--------------------------+
 /// | magic      | version | R (32 bytes)             |
 /// +------------+---------+--------------------------+
-/// 
-pub fn parse_umbra_memo(raw: &[u8]) -> Result<UmbraMemo, MemoDecodeError> {
+///
+use base64::{Engine as _, engine::general_purpose};
+
+/// Decode raw memo bytes (Base64 encoded) into an `UmbraMemo`.
+///
+/// Expected layout (version 1) AFTER Base64 decoding:
+///
+/// +------------+---------+--------------------------+
+/// | 0..4       | 4       | 5..37                    |
+/// +------------+---------+--------------------------+
+/// | magic      | version | R (32 bytes)             |
+/// +------------+---------+--------------------------+
+///
+pub fn parse_umbra_memo(raw_utf8: &[u8]) -> Result<UmbraMemo, MemoDecodeError> {
+    // 1. Decode Base64 first
+    let decoded = general_purpose::STANDARD
+        .decode(raw_utf8)
+        .map_err(|_| MemoDecodeError::InvalidMagic)?; // Generic error or add new one
+
     const HEADER: usize = 4 + 1; // magic + version
     const R_LEN: usize = 32;
     const MIN: usize = HEADER + R_LEN;
 
-    if raw.len() < MIN {
+    if decoded.len() < MIN {
         return Err(MemoDecodeError::TooShort {
             expected: MIN,
-            actual: raw.len(),
+            actual: decoded.len(),
         });
     }
 
-    let (magic, rest) = raw.split_at(4);
+    let (magic, rest) = decoded.split_at(4);
     if magic != UMBRA_MEMO_MAGIC {
         return Err(MemoDecodeError::InvalidMagic);
     }
@@ -78,27 +95,27 @@ pub fn parse_umbra_memo(raw: &[u8]) -> Result<UmbraMemo, MemoDecodeError> {
 
 /// Encode an Umbra memo according to the official protocol specification.
 ///
-/// Layout (version 1):
+/// Layout (version 1) BEFORE Base64 encoding:
 /// +------------+---------+--------------------------+
 /// | magic (4)  | v (1)   | R (32 bytes)             |
 /// +------------+---------+--------------------------+
 ///
-/// This function is the inverse of `parse_umbra_memo`.
-/// `ephemeral_y` MUST be a 32-byte compressed Edwards-Y coordinate.
+/// The result is a Base64 encoded UTF-8 string bytes.
 pub fn build_umbra_memo(ephemeral_y: &[u8; 32]) -> Vec<u8> {
     const HEADER_LEN: usize = 4 + 1;
     const R_LEN: usize = 32;
 
-    let mut out = Vec::with_capacity(HEADER_LEN + R_LEN);
+    let mut buf = Vec::with_capacity(HEADER_LEN + R_LEN);
 
     // 1) Magic
-    out.extend_from_slice(UMBRA_MEMO_MAGIC);
+    buf.extend_from_slice(UMBRA_MEMO_MAGIC);
 
     // 2) Version
-    out.push(UMBRA_MEMO_VERSION);
+    buf.push(UMBRA_MEMO_VERSION);
 
     // 3) Ephemeral pubkey (compressed Y)
-    out.extend_from_slice(ephemeral_y);
+    buf.extend_from_slice(ephemeral_y);
 
-    out
+    // 4) Base64 Encode
+    general_purpose::STANDARD.encode(buf).into_bytes()
 }

@@ -14,7 +14,9 @@ use umbra_core::derive::derive_for_initiator;
 use umbra_rpc::memo::{build_umbra_memo, UMBRA_MEMO_VERSION};
 use umbra_sweep::executor::execute_sweep_plans;
 use umbra_sweep::planner::build_sweep_plan;
-use umbra_sweep::sol::{build_and_sign_sweep_sol_transaction, SweepSolParams, MIN_REMAINING_LAMPORTS};
+use umbra_sweep::sol::{
+    build_and_sign_sweep_sol_transaction, SweepSolParams, MIN_REMAINING_LAMPORTS,
+};
 
 pub use umbra_client::UmbraClientError;
 pub use umbra_core::{Identity, InitiatorOutput, PointWrapper, ScalarWrapper};
@@ -118,7 +120,10 @@ impl UmbraApi {
     }
 
     /// Build a memo payload for initiator-side transfers.
-    pub fn build_umbra_memo(&self, ephemeral_pubkey: &PointWrapper) -> Result<Vec<u8>, UmbraApiError> {
+    pub fn build_umbra_memo(
+        &self,
+        ephemeral_pubkey: &PointWrapper,
+    ) -> Result<Vec<u8>, UmbraApiError> {
         if self.protocol.memo_version != UMBRA_MEMO_VERSION {
             return Err(UmbraApiError::UnsupportedMemoVersion {
                 requested: self.protocol.memo_version,
@@ -160,7 +165,8 @@ impl UmbraApi {
         let memo = self.build_umbra_memo(&output.ephemeral_pubkey)?;
         let one_time_pubkey = Pubkey::new_from_array(output.one_time_pubkey.to_bytes());
 
-        let instructions = self.build_transfer_instructions(payer, one_time_pubkey, amount, Some(&memo));
+        let instructions =
+            self.build_transfer_instructions(payer, one_time_pubkey, amount, Some(&memo));
 
         Ok(InitiatorTransfer {
             one_time_pubkey,
@@ -213,7 +219,9 @@ impl UmbraApi {
                 let params = SweepSolParams {
                     signer: &plan.signer,
                     to: plan.destination,
-                    amount: plan.amount.saturating_sub(self.protocol.min_remaining_lamports),
+                    amount: plan
+                        .amount
+                        .saturating_sub(self.protocol.min_remaining_lamports),
                     recent_blockhash,
                 };
 
@@ -263,5 +271,19 @@ fn memo_instruction(memo: &[u8], payer: &Pubkey) -> Instruction {
         program_id: MEMO_PROGRAM_ID,
         accounts: vec![AccountMeta::new_readonly(*payer, true)],
         data: memo.to_vec(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_api_config_defaults() {
+        let pk = Pubkey::new_unique();
+        let config = UmbraApiConfig::new("http://localhost:8899", pk);
+        assert_eq!(config.network.rpc_url, "http://localhost:8899");
+        assert_eq!(config.sweep_destination, pk);
+        assert_eq!(config.protocol.memo_version, UMBRA_MEMO_VERSION);
     }
 }

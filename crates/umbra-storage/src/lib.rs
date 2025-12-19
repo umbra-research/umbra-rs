@@ -356,9 +356,9 @@ impl JsonFileStorage {
             let bytes = fs::read(&path)?;
             match UmbraState::from_bytes(&bytes) {
                 Ok(s) => s,
-                Err(e) => {
+                Err(_e) => {
                     #[cfg(feature = "logging")]
-                    warn!("failed to parse state file ({}), starting fresh", e);
+                    warn!("failed to parse state file ({}), starting fresh", _e);
                     UmbraState::new_for_network(network.clone())
                 }
             }
@@ -458,5 +458,49 @@ impl UmbraStorage for JsonFileStorage {
             self.maybe_flush()?;
         }
         Ok(report)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_in_memory_storage_lifecycle() {
+        let store = InMemoryStorage::new(Network::Local);
+        
+        // 1. Initial state
+        let state = store.load_state();
+        assert_eq!(state.scan.network, Network::Local);
+        assert!(state.candidates.is_empty());
+
+        // 2. Save candidate
+        let candidate = CandidateRecord {
+            slot: 100,
+            signature: "sig123".to_string(),
+            recipient: "recipient".to_string(),
+            amount: 5000,
+            memo: vec![1, 2, 3],
+        };
+        store.save_candidate_output(candidate.clone()).unwrap();
+
+        let state_after = store.load_state();
+        assert_eq!(state_after.candidates.len(), 1);
+
+        // 3. Promote to owned
+        let owned = OwnedOutputRecord {
+            slot: 100,
+            signature: "sig123".to_string(),
+            one_time_pubkey: "otp_key".to_string(),
+            amount: 5000,
+            memo: vec![1, 2, 3],
+            metadata: BTreeMap::new(),
+        };
+        let key = CandidateKey::new(100, "sig123");
+        store.promote_candidate_to_owned(&key, owned).unwrap();
+
+        let state_final = store.load_state();
+        assert!(state_final.candidates.is_empty());
+        assert_eq!(state_final.owned.len(), 1);
     }
 }

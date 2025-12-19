@@ -1,6 +1,23 @@
 [package]
 name = "umbra-cli"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
+base64 = "0.22.1"
+bs58 = { workspace = true }
+clap = { version = "4.5.20", features = ["derive"] }
+curve25519-dalek = { workspace = true }
+rand_core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+solana-client = { workspace = true }
+solana-sdk = { workspace = true }
+umbra-api = { path = "../../crates/umbra-api" }
+umbra-client = { path = "../../crates/umbra-client" }
+umbra-core = { path = "../../crates/umbra-core" }
+umbra-rpc = { path = "../../crates/umbra-rpc" }
+zeroize = { workspace = true }

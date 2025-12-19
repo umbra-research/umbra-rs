@@ -16,6 +16,7 @@ solana-system-interface = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+base64 = "0.21"
 
 umbra-core = { path = "../umbra-core" }
 

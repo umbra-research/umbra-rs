@@ -244,3 +244,18 @@ impl UmbraClient {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_client_init() {
+        let pk = Pubkey::new_unique();
+        let config = UmbraClientConfig { sweep_destination: pk };
+        let client = UmbraClient::new("http://localhost:8899", config.clone());
+        // Verify we can access the RPC client URL (sanity check)
+        assert_eq!(client.rpc().url(), "http://localhost:8899");
+    }
+}
+

@@ -1,8 +1,10 @@
-use solana_sdk::{instruction::Instruction, message::Message, pubkey::Pubkey, transaction::Transaction};
+use solana_sdk::{
+    instruction::Instruction, message::Message, pubkey::Pubkey, transaction::Transaction,
+};
 
 use solana_system_interface::instruction::transfer;
 
-use crate::{SweepSolError, derivation::ScalarSigner};
+use crate::{derivation::ScalarSigner, SweepSolError};
 
 pub const MIN_REMAINING_LAMPORTS: u64 = 1_000_000;
 

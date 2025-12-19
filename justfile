@@ -42,6 +42,12 @@ test-full:
 test-devnet:
     cargo test -p umbra --test env_devnet -- --nocapture
 
+# -------------------------------
+# Test cli commands
+# -------------------------------
+test-cli:
+    cargo test -p umbra --test cli_test -- --nocapture
+
 
 # -------------------------------
 # Run all tests (unit + local)
