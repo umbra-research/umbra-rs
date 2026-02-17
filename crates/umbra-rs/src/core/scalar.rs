@@ -9,12 +9,6 @@ pub struct ScalarWrapper(pub Scalar);
 
 impl Zeroize for ScalarWrapper {
     fn zeroize(&mut self) {
-        // Scalar in dalek 3.x might not implement Zeroize or logic is different.
-        // Or we can just overwrite bytes if we can access internal.
-        // Actually Scalar is [u8; 32].
-        // For dalek 3.2, Scalar is u8 array.
-        // Let's rely on dalek's zeroize if available or unsafe write? 
-        // Dalek 3.2 implements Zeroize.
         self.0.zeroize();
     }
 }

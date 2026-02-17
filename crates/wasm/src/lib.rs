@@ -5,16 +5,7 @@ use umbra_rs::core::{
 };
 
 
-// We need a PRNG that works in WASM.
-// Since we are in a WASM environment, we can use `getrandom` crate behavior
-// (which delegates to browser crypto.getRandomValues via rand_core features usually)
-// OR we can implement a simple wrapper around `js_sys::Math::random` or better `window.crypto`.
-// 
-// For `rand 0.8` (which uses `rand_core 0.6` and `getrandom`), enabling "js" feature on getrandom
-// handles this automatically.
-// In our root Cargo.toml, we have `rand_core` features = ["getrandom"].
-// We need to ensure `getrandom` has "js" feature enabled if compiling for wasm32-unknown-unknown.
-// Usually `getrandom` enables "js" automatically on wasm32-unknown-unknown if configured.
+// using getrandom with "js" feature for WASM RNG
 
 #[wasm_bindgen]
 pub fn setup() {
@@ -25,14 +16,11 @@ pub fn setup() {
 #[derive(Serialize)]
 #[allow(non_snake_case)]
 pub struct WasmKeypair {
-    pub spendPrivateKey: String, // hex encoded for UI display or storage
+    pub spendPrivateKey: String, 
     pub viewPrivateKey: String,
     pub spendPublicKey: String,
     pub viewPublicKey: String,
-    pub pubkey: String, // Full solana address string of spend_pk (simplified) or view?
-                        // Actually Umbra Identity is NOT a simple Solana keypair. 
-                        // It's (spend_sk, view_sk).
-                        // Let's just return hex strings for keys.
+    pub pubkey: String, 
 }
 
 #[wasm_bindgen]
@@ -58,10 +46,6 @@ impl UmbraIdentity {
         let view_sk = ScalarWrapper::from_bytes(view_bytes);
 
         // Recompute public keys
-        // We need internal logic from Identity to rebuild PKs from SKs?
-        // Identity::new_random does it. We should assume we can rebuild it.
-        // But Identity struct fields are public in umbra-core.
-        
         use curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
         let spend_pk = PointWrapper(ED25519_BASEPOINT_POINT * spend_sk.0);
         let view_pk = PointWrapper(ED25519_BASEPOINT_POINT * view_sk.0);
@@ -235,82 +219,12 @@ pub fn sign_message_wasm(
     let sk_scalar = ScalarWrapper::from_bytes(sk_bytes);
     
     // 2. Derive Ed25519 Keypair from Scalar
-    // Umbra uses Ristretto/Curve25519 scalars. 
-    // Ed25519 signing expects a specific Keypair structure usually derived from a Seed or Expanded Secret.
-    // The stealth key logic in `core` produces a Scalar.
-    // We need to treat this Scalar as the secret key for Ed25519 signing.
-    // Does the `ed25519-dalek` crate support signing with a raw scalar?
-    // Usually `Keypair::from_bytes` takes 32 bytes (seed) or 64 bytes (expanded).
-    // If our `stealth_sk` is a Scalar, it corresponds to the private key `d` in `P = d * B`.
-    // Ed25519 standard `Keypair` usually stores the 32-byte SEED, from which `d` is derived via SHA512.
-    // However, we are doing "stealth address" which computes `d` directly (Spend + Hash(Shared) * View).
-    // So `d` IS the scalar.
-    // We need to sign using this scalar directly.
-    // `ed25519-dalek` has `SigningKey` (v2) or `Keypair` (v1).
-    // We can construct a signer from the scalar bytes IF the library allows it.
-    // `ed25519_dalek::SigningKey::from_bytes(bytes)` interprets bytes as the SEED usually.
-    // BUT checking docs: "The private key is a 32-byte seed".
-    // Wait. If we just pass the scalar bytes as the seed, then `d` will be `hash(scalar)`. That changes the private key!
-    // We need to perform "Raw Ed25519 Signing" where we provide `a` (the scalar) directly.
-    // Most high-level libraries (including `ed25519-dalek` default) enforce the standard (Seed -> Hash -> Scalar).
-    // BUT `solana-sdk` uses `ed25519-dalek`. 
-    // We might need to use `curve25519-dalek` (or internal logic) to sign manually if standard libraries enforce the seed model.
-    // OR we use a library that supports "ExpandedSecretKey".
-    // 
-    // Let's check `umbra-rs::core`. It likely has signing utils?
-    // If not, we implement simplified signing: R = rB, S = r + H(R, P, M) * a.
-    // `ed25519-dalek` has `hazmat` feature or `ExpandedSecretKey`.
-    
-    // Let's assume standard `Keypair::from_bytes` works if our scalar IS the seed? 
-    // No, that's not how stealth addresses work. Stealth address math operates on the scalar `a`.
-    // `stealth_priv = spend_priv + hash(shared_secret)`. This is a scalar addition.
-    // So `stealth_priv` is a scalar.
-    // If we feed this scalar into `Keypair::from_bytes`, it will hash it again => wrong key.
-    
-    // We need: `ed25519_dalek::ExpandedSecretKey` (if using v1) or equivalent.
-    // `umbra-rs` likely depends on `ed25519-dalek`.
-    
-    // Alternative: Use `solana_sdk::signature::Keypair::from_bytes`? 
-    // No, Solana Keypair also assumes Seed.
-    
-    // WE NEED Manual Signing using the Scalar.
-    // This is often called "signing with a private scalar".
-    // I will use `ed25519_dalek::SigningKey` but I need to be careful.
-    // Re-check `crates/core` to see if we already solved this. 
-    // If not, I will use `curve25519-dalek` directly to implement `sign`.
-    // Or I check if `ed25519_dalek` was compiled with `features = ["batch", "fast", "serde"]` etc.
-    
-    // Let's defer to a helper likely in `umbra-rs::core`? 
-    // I'll check `umbra-rs/src/core/mod.rs` or `encryption.rs`.
-    // If not found, I will implement it here using `ed25519-dalek` if possible or manually.
-    
-    // For now, I'll attempt to use `ed25519_dalek::SigningKey::from_scalar_bytes` (if it exists) or `ExpandedSecretKey`.
-    
-    // Checking dependency `cargo.toml` for `ed25519-dalek`.
-    
-    // Let's look for `umbra_rs::core::sign` first?
-    // I'll assume I need to implement it.
+    // We implement manual Ed25519 signing using the scalar 'a' directly.
+    // Standard libraries often expect a Seed, but Stealth logic gives us the scalar private key.
     
     // Implementation of Ed25519 Sign with Scalar `sk`:
-    // 1. We need a nonce `r`. Standard: `r = hash(hash(seed)_prefix || message)`.
-    // But we don't have a seed. We have `sk`.
-    // We can generate random `r` (Ed25519-ph?) or deterministic `r` from `hash(sk || message)`.
-    // Let's use random `r` for safety if we can't reproduce the standard nonce derivation.
-    // But Ed25519 is deterministic.
-    // We can use `Sha512(sk_bytes || message)` as source for `r`?
-    
-    // Actually, `ed25519-dalek` has `SecretKey` type which IS the seed.
-    // It has `ExpandedSecretKey` which is `(scalar, prefix)`.
-    // If we construct `ExpandedSecretKey` with `(stealth_sk, dummy_prefix)`...
-    // The prefix is used for nonce generation.
-    // Does the prefix matter for validity?
-    // Verification checks `GS == R + H(R,A,M)A`. Nothing to do with prefix.
-    // So ANY nonce `r` is valid as long as we don't reuse it for different messages (leaks key).
-    // So `ExpandedSecretKey` with a pseudo-random prefix (or hash of scalar) works.
-    
-    // I'll try to find `sign_with_scalar` helper or implement it.
-    // Since I can't browse crates.io, I will implement a basic `sign_with_scalar` function here using `curve25519-dalek`.
-    
+    // R = rB, S = r + H(R, P, M) * a
+    // We use a deterministic nonce generation scheme or random if allowed.
     // IMPORTANT: Message can be any length, not fixed 32 bytes!
     // Withdrawal message is 80 bytes: stealth_pk(32) + recipient(32) + amount(8) + fee(8)
     let message_bytes = hex::decode(message_hex)

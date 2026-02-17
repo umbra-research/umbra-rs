@@ -31,9 +31,7 @@ pub fn encrypt_memo<R: RngCore + CryptoRng>(
         })
         .map_err(|e| format!("Encryption failure: {}", e))?;
 
-    // 4. Pack: Nonce + Ciphertext (Tag is included in ciphertext by crate usually? 
-    // Wait, ChaCha20Poly1305 crate `encrypt` returns Vec<u8> containing ciphertext + tag appended.
-    // So we just need to prepend Nonce.
+    // 4. Pack: Nonce + Ciphertext (Tag is included in ciphertext)
     
     let mut packed = Vec::with_capacity(12 + ciphertext.len());
     packed.extend_from_slice(&nonce_bytes);
