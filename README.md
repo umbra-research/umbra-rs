@@ -1,46 +1,126 @@
-Umbra Project — README (Draft)
+# Umbra-RS — Stealth Payments on Solana
 
-Umbra is a personal project where I’m exploring the idea of anonymous / stealth payments on Solana. The core concept: a sender can transfer funds without revealing the real receiving wallet, while the recipient can automatically sweep those funds into their main wallet.
+**Umbra** is a privacy-preserving payment protocol on Solana. It enables senders to transfer SOL and SPL Tokens (including Token-2022 Confidential Transfers) to recipients without revealing their real wallet address / identity on-chain.
 
-This is a short draft README to describe the high-level idea — not deep technical details. I will continue updating it as the project evolves.
+> ⚠️ **Beta Software**: This software is in active development (v0.1.0) and has not yet been audited. Use at your own risk.
 
-⸻
+## 🚀 Key Features
 
-🚀 Project Goals
-• Enable private fund receiving with stealth-like addresses.
-• Make payments unlinkable on-chain.
-• Automatically scan the blockchain for incoming stealth outputs.
-• Automatically sweep SOL/SPL to the user’s real wallet.
-• Provide a clean and simple SDK for integration.
+*   **Stealth Addresses**: Cryptographically derived one-time addresses using ECDH (Elliptic Curve Diffie-Hellman) ensures linkability is broken between sender and receiver.
+*   **SPL Token Support**: Full support for standard SPL Tokens and **Token-2022** (including Confidential Transfers).
+*   **Gasless Withdrawals**: Integrated Relayer service allows recipients to withdraw funds without needing SOL in their stealth wallet (Relayer pays fees in exchange for a cut).
+*   **Modular Architecture**:
+    *   **Core**: Pure Rust cryptography library (`umbra-core`).
+    *   **Program**: Anchor-based on-chain program (`umbra-program`).
+    *   **Services**: Dockerized Indexer and Relayer for high-availability deployments.
 
-⸻
+## 🏗️ Architecture
 
-🔧 Main Development Phases
+The workspace is organized into the following crates:
 
-(1) Basic Cryptography
-Generate identities, compute temporary keys, and validate stealth outputs.
+| Crate | Description |
+|-------|-------------|
+| `crates/umbra-core` | Core cryptographic primitives (Curve25519, hashing, address derivation). |
+| `crates/umbra-program` | Solana Program (Anchor) handling on-chain transfers and withdrawals. |
+| `crates/umbra-client` | Rust SDK for client-side integration (scanning, sweeping, transaction building). |
+| `crates/umbra-rpc` | RPC wrappers and type definitions logic for safe Solana interaction. |
+| `crates/umbra-indexer` | Service that listens for `StealthAnnouncement` events and indexes them. |
+| `crates/umbra-relayer` | HTTP service enabling gasless withdrawals via signature verification. |
+| `bins/umbra-cli` | Command-line interface for managing identities and operations. |
 
-(2) RPC Scanning
-Read blockchain data and detect outputs that belong to the user.
+## 🛠️ Getting Started
 
-(3) Sweeping
-Use the spend key to transfer funds into the real wallet.
+### Prerequisites
 
-(4) Storage
-Store identities, keys, and scan results.
+*   **Rust**: 1.79+ (Stable)
+*   **Solana Toolchain**: 1.18.x or later
+*   **Docker**: (Optional, for running services)
 
-(5) SDK / Integration
-Expose a simple API for apps and services.
+### Installation (CLI)
 
-⸻
+Install the CLI tool locally:
 
-📌 Project Status
+```bash
+cargo install --path bins/umbra-cli
+```
 
-The project is actively in development and many parts are still experimental.
-This README will be updated as progress continues.
+### Usage (CLI)
 
-⸻
+1.  **Generate Identity**:
+    ```bash
+    umbra identity generate --export my_identity.json
+    ```
 
-👤 Author
+2.  **Send Stealth Payment**:
+    ```bash
+    # Sends 1.5 SOL to the recipient's identity file path
+    umbra send build --recipient recipient_identity.json --payer <PAYER_KEYPAIR> --amount 1500000000
+    ```
 
-Endale (0xendale) — 2025
+3.  **Scan for Funds**:
+    ```bash
+    umbra scan range --identity my_identity.json --start 0 --end 1000
+    ```
+
+4.  **Sweep Funds**:
+    ```bash
+    umbra sweep execute --identity my_identity.json --start 0 --end 1000 --confirm
+    ```
+
+## 🐳 Docker Deployment
+
+The system infrastructure (`indexer` and `relayer`) is fully Dockerized.
+
+### Build the Image
+
+```bash
+docker build -t umbra-system .
+```
+
+### Run Indexer
+
+```bash
+docker run -d --name umbra-indexer \
+  -v $(pwd)/umbra_db:/usr/local/bin/umbra_db \
+  umbra-system:indexer \
+  /usr/local/bin/umbra-indexer \
+  --rpc-url https://api.devnet.solana.com \
+  --program-id <PROGRAM_ID>
+```
+
+### Run Relayer
+
+```bash
+docker run -d --name umbra-relayer \
+  -p 3000:3000 \
+  -v $(pwd)/relayer-keypair.json:/usr/local/bin/keypair.json \
+  umbra-system:relayer \
+  /usr/local/bin/umbra-relayer \
+  --rpc-url https://api.devnet.solana.com \
+  --keypair /usr/local/bin/keypair.json \
+  --program-id <PROGRAM_ID>
+```
+
+## 🧪 Development
+
+### Build Workspace
+
+```bash
+cargo build
+```
+
+### Run Tests
+
+```bash
+cargo test
+```
+
+### Build Anchor Program
+
+```bash
+anchor build -p umbra-program
+```
+
+## 📄 License
+
+MIT License. See `LICENSE` for details.

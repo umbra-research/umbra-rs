@@ -10,12 +10,12 @@ use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     pubkey::Pubkey, signature::read_keypair_file, signer::Signer, transaction::Transaction,
 };
-use umbra_api::{Identity, OwnedOutput, PlanIssue, SweepPlan, UmbraApi, UmbraApiConfig};
-use umbra_client::UmbraBatchSummary;
-use umbra_core::{PointWrapper, ScalarWrapper};
-use umbra_rpc::memo::UMBRA_MEMO_VERSION;
-use umbra_rpc::ownership::{match_candidate_output, ClaimantKeyMaterial, ScanIssue};
-use umbra_rpc::types::{CandidateOutput, UmbraMemo};
+use umbra_rs::api::{Identity, OwnedOutput, PlanIssue, SweepPlan, UmbraApi, UmbraApiConfig};
+use umbra_rs::client::UmbraBatchSummary;
+use umbra_rs::core::{PointWrapper, ScalarWrapper};
+use umbra_rs::rpc::memo::UMBRA_MEMO_VERSION;
+use umbra_rs::rpc::ownership::{match_candidate_output, ClaimantKeyMaterial, ScanIssue};
+use umbra_rs::rpc::types::{CandidateOutput, UmbraMemo};
 use zeroize::Zeroize;
 
 const IDENTITY_FILE_VERSION: u8 = 1;
@@ -506,7 +506,7 @@ fn handle_claim(cli: &Cli, cmd: &ClaimCommand) -> Result<()> {
                 })?;
             let ephemeral_point = decode_point(&ephemeral)?;
 
-            let recovered = umbra_core::derive::derive_for_claimant(
+            let recovered = umbra_rs::core::derive::derive_for_claimant(
                 &identity,
                 &PointWrapper(ot_point),
                 &ephemeral_point,

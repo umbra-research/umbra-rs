@@ -1,73 +1,50 @@
-Umbra (Solana) — Project Documentation (Brief)
+# Umbra (Solana) — System Architecture
 
-Status: v0.1.0 Release Candidate. This document outlines the core architecture.
-
-# Umbra Protocol Library
+**Status**: v0.1.0 Release.
 
 ## Overview
 
-This directory contains the core Rust implementation of the Umbra protocol. It is designed as a standalone workspace providing all necessary components to build privacy-preserving applications on Solana.
+The Umbra system is designed modularly to separate cryptographic logic, blockchain interaction, and user-facing applications. This ensures auditability and maintainability.
 
-## Crates Overview
+## Component Stack
 
-The workspace is modular, consisting of the following crates:
+### 1. Core Layer (`crates/umbra-core` & `crates/umbra-program`)
+*   **`umbra-core`**: The source of truth for all cryptography.
+    *   **Implements**: Ristretto Group Operations (using `curve25519-dalek`), Stealth Address Derivation (ECDH), Shared Secret Hashing.
+    *   **Usage**: Used by Client, Relayer, and WASM bindings.
+*   **`umbra-program`**: The on-chain Anchor program.
+    *   **Implements**: `send_stealth` (SOL/SPL), `withdraw`, `withdraw_with_relayer`.
+    *   **Safety**: Verifies Ed25519 signatures for gasless withdrawals and ensures strict PDA derivations.
 
-| Crate | Purpose | Dependencies |
-|-------|---------|--------------|
-| **`umbra-core`** | Pure cryptography & logic | None (Pure Rust) |
-| **`umbra-rpc`** | Solana RPC interaction | `solana-sdk` |
-| **`umbra-api`** | Common types & interfaces | `umbra-core` |
-| **`umbra-client`** | High-level wallet/SDK | `umbra-rpc`, `umbra-storage` |
-| **`umbra-storage`** | Local key/state management | `serde` |
-| **`umbra-sweep`** | Logic for sweeping funds | `umbra-rpc` |
+### 2. Interaction Layer (`crates/umbra-client` & `crates/umbra-rpc`)
+*   **`umbra-rpc`**: Handles Solana RPC transport.
+    *   **Features**: Block fetching, Transaction serialization, Log parsing.
+*   **`umbra-client`**: The High-Level SDK.
+    *   **Features**:
+        *   **Scanning**: efficiently scans blocks for `StealthAnnouncement` events.
+        *   **Output Management**: Decrypts announcements to check ownership.
+        *   **Sweeping**: Builds transactions to move funds from stealth PDAs to real wallets.
 
----
+### 3. Service Layer (`crates/umbra-indexer` & `crates/umbra-relayer`)
+*   **`umbra-indexer`**:
+    *   **Role**: Persistent observer. Listens to the chain and stores potential outputs in a local DB (JSON/Postgres) to prevent re-scanning from genesis.
+    *   **Resiliency**: Handles basic chain re-orgs/rollbacks.
+*   **`umbra-relayer`**:
+    *   **Role**: Privacy Proxy. Allows users to submit "Withdraw Requests" (signed off-chain) to this service.
+    *   **Mechanism**: The relayer submits the transaction on-chain, paying the gas fees. The program deducts a `fee` from the withdrawal amount and reimburses the relayer in the same atomic transaction.
 
-## 1. `umbra-core`
-**The Cryptographic Heart.**  
-Contains all pure logic for key derivation and identity management. Zero network dependencies, suitable for WASM/Embedded.
-- **Features**: Elliptic curve math (Ristretto), stealth address derivation, shared secret computation.
+## Data Flow
 
-## 2. `umbra-rpc`
-**The Blockchain Connector.**
-Handles low-level interaction with Solana nodes.
-- **Features**: Memo parsing (`UMBR` protocol), efficient block scanning, transaction instruction building.
+1.  **Sender** generates `Ephemeral Secret` and derives `Stealth Pubkey` (via `umbra-core`).
+2.  **Sender** invokes `umbra-program::send_stealth` (via `umbra-client`).
+3.  **Program** transfers funds to PDA and emits `StealthAnnouncement` event.
+4.  **Indexer** (or Client) sees event.
+5.  **Recipient**'s Client derives `Shared Secret` from event data.
+6.  **Recipient** checks if `H(Shared Secret) == Tag`. If yes, they own it.
+7.  **Recipient** sweeps funds (directly or via Relayer).
 
-## 3. `umbra-api`
-**The Interface Layer.**
-Defines the common data structures and traits used across the ecosystem.
-- **Features**: `SendRequest`, `InboxItem` types, and trait definitions for custom implementations.
+## Security Model
 
-## 4. `umbra-storage`
-**Secure Persistence.**
-Manages the local storage of user identities and transaction history.
-- **Features**: Encrypted key storage (file-based or custom backend), scanning cursor state management.
-
-## 5. `umbra-sweep`
-**The Claim Executor.**
-Dedicated logic for moving funds from stealth addresses to a destination wallet.
-- **Features**: Robust sweeping algorithm, handles rent exemption, multiple output sweeping.
-
-## 6. `umbra-client`
-**The High-Level SDK.**
-Combines all above crates into a simple, developer-friendly client.
-- **Features**:
-    - `scan_and_cache()`: Background scanning logic.
-    - `send_stealth()`: One-line function to send privacy transfers.
-    - `sweep_all()`: One-line function to claim all funds.
-
-### Usage Example (Client)
-```rust
-use umbra_client::UmbraClient;
-
-let client = UmbraClient::new("https://api.devnet.solana.com", storage_provider);
-
-// Send
-client.send_stealth(&recipient_id, 1.5).await?;
-
-// Scan & Claim
-let balance = client.sync().await?;
-if balance > 0.0 {
-    client.sweep_to_wallet(&my_main_wallet).await?;
-}
-```
+*   **Non-Custodial**: The protocol never holds keys. Stealth PDAs are program-derived addresses that only the holder of the recipient's private view key can derive the spend key for.
+*   **Linkability**: Observers see a transfer to a unique, random address. Only the sender and receiver know the link.
+*   **Relayer Privacy**: The Relayer knows the IP address of the claimant unless Tor/VPN is used, but the on-chain link remains broken.

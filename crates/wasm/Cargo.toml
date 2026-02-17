@@ -1,0 +1,24 @@
+[package]
+name = "umbra-wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+serde = { workspace = true, features = ["derive"] }
+serde-wasm-bindgen = "0.5"
+hex = "0.4"
+rand = "0.8.5"
+getrandom = { version = "0.2", features = ["js"] }
+console_error_panic_hook = "0.1"
+curve25519-dalek = { workspace = true }
+sha2 = { workspace = true }
+rand_core = { workspace = true }
+
+umbra-rs = { path = "../umbra-rs", default-features = false, features = ["wasm"] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"

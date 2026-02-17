@@ -1,0 +1,26 @@
+[package]
+name = "umbra-program"
+version = "0.1.0"
+description = "Native Solana Program for Umbra"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "umbra_program"
+
+[features]
+no-entrypoint = []
+default = []
+
+[dependencies]
+solana-program = "1.18.26"
+spl-token-2022 = { version = "3.0.4", features = ["no-entrypoint"] }
+spl-associated-token-account = { version = "3.0.4", features = ["no-entrypoint"] }
+thiserror = "1.0"
+borsh = { version = "1.5.1", features = ["derive"] }
+
+[dev-dependencies]
+solana-program-test = "1.18.26"
+solana-sdk = "1.18.26"
+[workspace]
+members = []

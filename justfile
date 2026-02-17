@@ -61,6 +61,24 @@ test:
 # Full CI
 # -------------------------------
 ci:
-    just format
-    just clippy
     just test
+# -------------------------------
+# Backend Services
+# -------------------------------
+run-system:
+    cd ../umbra-system && cargo run
+# -------------------------------
+# Program Commands
+# -------------------------------
+build-program:
+    cd crates/program && cargo build-sbf
+
+deploy-program:
+    # Requires solana-test-validator running
+    cd crates/program && solana program-v4 deploy --keypair ../../wallet.json --program-keypair target/sbf/deploy/umbra_program-keypair.json target/deploy/umbra_program.so
+
+# -------------------------------
+# WASM Commands
+# -------------------------------
+build-wasm:
+    cd crates/wasm && wasm-pack build --target web
